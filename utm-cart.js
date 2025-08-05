@@ -1,56 +1,6 @@
 (function () {
   'use strict';
 
-  // Configuration - Override these before loading the script or pass via data attributes
-  window.ShopifyUTMConfig = window.ShopifyUTMConfig || {};
-
-  // Default configuration
-  const defaultConfig = {
-    domain: 'lubenipharmacy.com',
-    storefrontAccessToken: '17848453ee4ac3f52553b1d1839a3873',
-    productId: null, // Must be set
-    containerId: null, // Must be set
-    moneyFormat: 'AED%20%7B%7Bamount%7D%7D',
-  };
-
-  // Merge user config with defaults
-  const config = Object.assign({}, defaultConfig, window.ShopifyUTMConfig);
-
-  // Auto-detect configuration from script tag data attributes
-  function detectConfigFromScript() {
-    const scripts = document.querySelectorAll(
-      'script[src*="shopify-utm-tracker"]'
-    );
-    if (scripts.length > 0) {
-      const script = scripts[scripts.length - 1]; // Get the last matching script
-      if (script.dataset.domain) config.domain = script.dataset.domain;
-      if (script.dataset.storefrontAccessToken)
-        config.storefrontAccessToken = script.dataset.storefrontAccessToken;
-      if (script.dataset.productId) config.productId = script.dataset.productId;
-      if (script.dataset.containerId)
-        config.containerId = script.dataset.containerId;
-      if (script.dataset.moneyFormat)
-        config.moneyFormat = script.dataset.moneyFormat;
-    }
-  }
-
-  // Auto-detect configuration from container element
-  function detectConfigFromContainer() {
-    if (config.containerId) {
-      const container = document.getElementById(config.containerId);
-      if (container) {
-        if (container.dataset.domain) config.domain = container.dataset.domain;
-        if (container.dataset.storefrontAccessToken)
-          config.storefrontAccessToken =
-            container.dataset.storefrontAccessToken;
-        if (container.dataset.productId)
-          config.productId = container.dataset.productId;
-        if (container.dataset.moneyFormat)
-          config.moneyFormat = container.dataset.moneyFormat;
-      }
-    }
-  }
-
   // IMMEDIATE WINDOW.OPEN OVERRIDE - BLOCK ALL POPUPS
   var originalWindowOpen = window.open;
   window.open = function (url, name, specs) {
@@ -59,7 +9,7 @@
       url &&
       (url.includes('checkout') ||
         url.includes('checkouts') ||
-        url.includes(config.domain))
+        url.includes('lubenipharmacy.com'))
     ) {
       // Add UTM parameters before opening
       url = addUTMToCheckoutURL(url);
@@ -78,16 +28,14 @@
     var vars = query.split('&');
     for (var i = 0; i < vars.length; i++) {
       var pair = vars[i].split('=');
-      if (pair.length === 2) {
-        // Include UTM parameters and Google Ads tracking parameters
-        if (
-          pair[0].startsWith('utm_') ||
-          pair[0] === 'gclid' ||
-          pair[0] === 'gad_campaignid' ||
-          pair[0] === 'gbraid'
-        ) {
-          params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
-        }
+      // Include UTM parameters and Google Ads tracking parameters
+      if (
+        pair[0].startsWith('utm_') ||
+        pair[0] === 'gclid' ||
+        pair[0] === 'gad_campaignid' ||
+        pair[0] === 'gbraid'
+      ) {
+        params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
       }
     }
     return params;
@@ -100,8 +48,7 @@
       date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
       expires = '; expires=' + date.toUTCString();
     }
-    document.cookie =
-      name + '=' + (value || '') + expires + '; path=/; SameSite=Lax';
+    document.cookie = name + '=' + (value || '') + expires + '; path=/';
   }
 
   function getCookie(name) {
@@ -135,17 +82,17 @@
       var gcl_aw = getCookie('_gcl_aw');
       if (gcl_aw) {
         var gclid = gcl_aw.split('.').pop();
-        if (gclid) trackingParams.push('gclid=' + gclid);
+        trackingParams.push('gclid=' + gclid);
       }
 
       // Check for gbraid in _gcl_gb cookie
       var gcl_gb = getCookie('_gcl_gb');
       if (gcl_gb) {
         var gbraid = gcl_gb.split('.').pop();
-        if (gbraid) trackingParams.push('gbraid=' + gbraid);
+        trackingParams.push('gbraid=' + gbraid);
       }
 
-      // Check for campaign ID in _gcl_dc or other Google cookies
+      // Check for campaign ID in _gcl_aw or other Google cookies
       var gcl_dc = getCookie('_gcl_dc');
       if (gcl_dc) {
         // Extract campaign ID if available in the cookie
@@ -169,58 +116,28 @@
     return url + separator + serializedParams;
   }
 
+  // Configuration
+  const config = {
+    domain: 'lubenipharmacy.com',
+    storefrontAccessToken: '17848453ee4ac3f52553b1d1839a3873',
+    productId: '<?php echo esc_js($product_id); ?>',
+    containerId: '<?php echo esc_js($unique_id); ?>',
+    moneyFormat: 'AED%20%7B%7Bamount%7D%7D',
+  };
+
   // Error handling
   function handleError(error) {
     console.error('Shopify Buy Button Error:', error);
     const container = document.getElementById(config.containerId);
     if (container) {
       container.innerHTML =
-        '<p class="shopify-error" style="color: #ff0000; padding: 10px; border: 1px solid #ff0000; border-radius: 4px;">Unable to load product. Please check your configuration and try again.</p>';
+        '<p class="shopify-error">Unable to load product. Please try again later.</p>';
     }
-  }
-
-  // Validate configuration
-  function validateConfig() {
-    if (!config.productId) {
-      handleError(
-        new Error(
-          'Product ID is required. Set it via window.ShopifyUTMConfig.productId or data-product-id attribute.'
-        )
-      );
-      return false;
-    }
-    if (!config.containerId) {
-      handleError(
-        new Error(
-          'Container ID is required. Set it via window.ShopifyUTMConfig.containerId or data-container-id attribute.'
-        )
-      );
-      return false;
-    }
-    if (!config.domain) {
-      handleError(
-        new Error(
-          'Domain is required. Set it via window.ShopifyUTMConfig.domain or data-domain attribute.'
-        )
-      );
-      return false;
-    }
-    if (!config.storefrontAccessToken) {
-      handleError(
-        new Error(
-          'Storefront access token is required. Set it via window.ShopifyUTMConfig.storefrontAccessToken or data-storefront-access-token attribute.'
-        )
-      );
-      return false;
-    }
-    return true;
   }
 
   // Initialize Shopify Buy Button with UTM functionality
   function initShopifyBuy() {
     try {
-      if (!validateConfig()) return;
-
       const client = ShopifyBuy.buildClient({
         domain: config.domain,
         storefrontAccessToken: config.storefrontAccessToken,
@@ -243,9 +160,7 @@
         .then(function (ui) {
           const container = document.getElementById(config.containerId);
           if (!container) {
-            throw new Error(
-              'Container element not found: ' + config.containerId
-            );
+            throw new Error('Container element not found');
           }
 
           ui.createComponent('product', {
@@ -489,12 +404,6 @@
 
   // Load Shopify SDK
   function loadShopifySDK() {
-    // Check if SDK is already loaded
-    if (window.ShopifyBuy && window.ShopifyBuy.UI) {
-      initShopifyBuy();
-      return;
-    }
-
     const scriptURL =
       'https://sdks.shopifycdn.com/buy-button/latest/buy-button-storefront.min.js';
     const script = document.createElement('script');
@@ -503,19 +412,13 @@
     script.src = scriptURL;
     script.onload = initShopifyBuy;
     script.onerror = function () {
-      handleError(new Error('Failed to load Shopify SDK from: ' + scriptURL));
+      handleError(new Error('Failed to load Shopify SDK'));
     };
 
     const head =
       document.getElementsByTagName('head')[0] ||
       document.getElementsByTagName('body')[0];
-    if (head) {
-      head.appendChild(script);
-    } else {
-      handleError(
-        new Error('Unable to find head or body element to load Shopify SDK')
-      );
-    }
+    head.appendChild(script);
   }
 
   // CHECKOUT LINK INTERCEPTOR
@@ -562,144 +465,112 @@
     });
 
     // Dynamic content observer
-    if (window.MutationObserver) {
-      var observer = new MutationObserver(function (mutations) {
-        mutations.forEach(function (mutation) {
-          mutation.addedNodes.forEach(function (node) {
-            if (node.nodeType === 1) {
-              var checkoutLinks = node.querySelectorAll
-                ? node.querySelectorAll(
-                    'a[href*="checkout"], a[href*="checkouts"]'
-                  )
-                : [];
-              checkoutLinks.forEach(function (link) {
-                var href = link.getAttribute('href');
-                if (href) {
-                  var newHref = addUTMToCheckoutURL(href);
-                  link.setAttribute('href', newHref);
-                  // Force remove target to prevent popup behavior
-                  link.removeAttribute('target');
-                }
-              });
-            }
-          });
+    var observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (mutation) {
+        mutation.addedNodes.forEach(function (node) {
+          if (node.nodeType === 1) {
+            var checkoutLinks = node.querySelectorAll
+              ? node.querySelectorAll(
+                  'a[href*="checkout"], a[href*="checkouts"]'
+                )
+              : [];
+            checkoutLinks.forEach(function (link) {
+              var href = link.getAttribute('href');
+              if (href) {
+                var newHref = addUTMToCheckoutURL(href);
+                link.setAttribute('href', newHref);
+                // Force remove target to prevent popup behavior
+                link.removeAttribute('target');
+              }
+            });
+          }
         });
       });
+    });
 
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
-    }
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
 
   // LOCATION AND NETWORK OVERRIDES
   function setupLocationOverrides() {
-    try {
-      // Location href override
-      let originalLocationHref =
-        Object.getOwnPropertyDescriptor(window.location, 'href') ||
-        Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+    // Location href override
+    let originalLocationHref =
+      Object.getOwnPropertyDescriptor(window.location, 'href') ||
+      Object.getOwnPropertyDescriptor(Location.prototype, 'href');
 
-      if (originalLocationHref && originalLocationHref.set) {
-        Object.defineProperty(window.location, 'href', {
-          get: function () {
-            return originalLocationHref.get.call(this);
-          },
-          set: function (url) {
-            if (
-              url &&
-              (url.includes('/checkout') || url.includes('checkouts/')) &&
-              serializedParams
-            ) {
-              url = addUTMToCheckoutURL(url);
-            }
-            return originalLocationHref.set.call(this, url);
-          },
-        });
-      }
+    Object.defineProperty(window.location, 'href', {
+      get: function () {
+        return originalLocationHref.get.call(this);
+      },
+      set: function (url) {
+        if (
+          url &&
+          (url.includes('/checkout') || url.includes('checkouts/')) &&
+          serializedParams
+        ) {
+          url = addUTMToCheckoutURL(url);
+        }
+        return originalLocationHref.set.call(this, url);
+      },
+    });
 
-      // Network request interceptor
-      if (window.fetch) {
-        const originalFetch = window.fetch;
-        window.fetch = function (url, options) {
-          if (
-            typeof url === 'string' &&
-            (url.includes('/checkout') || url.includes('checkouts/')) &&
-            serializedParams
-          ) {
-            url = addUTMToCheckoutURL(url);
-          }
-          return originalFetch.call(this, url, options);
-        };
+    // Network request interceptor
+    const originalFetch = window.fetch;
+    window.fetch = function (url, options) {
+      if (
+        typeof url === 'string' &&
+        (url.includes('/checkout') || url.includes('checkouts/')) &&
+        serializedParams
+      ) {
+        url = addUTMToCheckoutURL(url);
       }
+      return originalFetch.call(this, url, options);
+    };
 
-      // Location methods override
-      if (window.location.replace) {
-        const originalReplace = window.location.replace;
-        window.location.replace = function (url) {
-          if (
-            url &&
-            (url.includes('/checkout') || url.includes('checkouts/')) &&
-            serializedParams
-          ) {
-            url = addUTMToCheckoutURL(url);
-          }
-          return originalReplace.call(this, url);
-        };
+    // Location methods override
+    const originalReplace = window.location.replace;
+    window.location.replace = function (url) {
+      if (
+        url &&
+        (url.includes('/checkout') || url.includes('checkouts/')) &&
+        serializedParams
+      ) {
+        url = addUTMToCheckoutURL(url);
       }
+      return originalReplace.call(this, url);
+    };
 
-      if (window.location.assign) {
-        const originalAssign = window.location.assign;
-        window.location.assign = function (url) {
-          if (
-            url &&
-            (url.includes('/checkout') || url.includes('checkouts/')) &&
-            serializedParams
-          ) {
-            url = addUTMToCheckoutURL(url);
-          }
-          return originalAssign.call(this, url);
-        };
+    const originalAssign = window.location.assign;
+    window.location.assign = function (url) {
+      if (
+        url &&
+        (url.includes('/checkout') || url.includes('checkouts/')) &&
+        serializedParams
+      ) {
+        url = addUTMToCheckoutURL(url);
       }
-    } catch (error) {
-      console.warn('Could not setup location overrides:', error);
-    }
+      return originalAssign.call(this, url);
+    };
   }
 
-  // Main initialization function
-  function initialize() {
-    try {
-      // Detect configuration from script tag and container
-      detectConfigFromScript();
-      detectConfigFromContainer();
-
-      // Setup interceptors
+  // Initialize everything when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
       setupCheckoutInterceptors();
       setupLocationOverrides();
-
-      // Initialize Shopify Buy Button
-      loadShopifySDK();
-    } catch (error) {
-      handleError(error);
-    }
-  }
-
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize);
+    });
   } else {
-    // DOM is already ready
-    setTimeout(initialize, 0);
+    setupCheckoutInterceptors();
+    setupLocationOverrides();
   }
 
-  // Expose public API
-  window.ShopifyUTMTracker = {
-    init: initialize,
-    addUTMToURL: addUTMToCheckoutURL,
-    getUTMParams: function () {
-      return serializedParams;
-    },
-    config: config,
-  };
+  // Initialize Shopify Buy Button
+  if (window.ShopifyBuy && window.ShopifyBuy.UI) {
+    initShopifyBuy();
+  } else {
+    loadShopifySDK();
+  }
 })();
