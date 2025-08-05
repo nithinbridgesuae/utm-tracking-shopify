@@ -278,12 +278,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // FORCE TAB BEHAVIOR WITH CSS
   var style = document.createElement('style');
   style.textContent = `
-        a[href*="checkout"], 
-        button[onclick*="checkout"],
-        [data-shopify*="checkout"] {
-            target: _blank !important;
-        }
-    `;
+            a[href*="checkout"], 
+            button[onclick*="checkout"],
+            [data-shopify*="checkout"] {
+                target: _blank !important;
+            }
+        `;
   document.head.appendChild(style);
 });
 
